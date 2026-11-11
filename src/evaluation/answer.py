@@ -44,21 +44,23 @@ def extract_boxed_answer(text: str) -> str | None:
 
 
 def extract_final_answer(text: str) -> str:
-    if "####" in text:
-        final = text.rsplit("####", 1)[-1].strip()
-        if final:
-            return final.splitlines()[0].strip()
-
     boxed = extract_boxed_answer(text)
     if boxed:
         return boxed
+
+    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+    # GSM8K places "#### <answer>" on the final line. Only honor the marker there so
+    # Markdown headings such as "#### Step 1" are never mistaken for the answer.
+    if lines and "####" in lines[-1]:
+        final = lines[-1].rsplit("####", 1)[-1].strip()
+        if final:
+            return final
 
     final_patterns = (
         r"final answer\s*[:\-]\s*(.+)$",
         r"answer\s*[:\-]\s*(.+)$",
         r"therefore\s*,?\s*(.+)$",
     )
-    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
     tail = "\n".join(lines[-5:])
     for pattern in final_patterns:
         match = re.search(pattern, tail, flags=re.IGNORECASE | re.DOTALL)
